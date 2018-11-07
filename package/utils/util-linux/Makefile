@@ -8,17 +8,16 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=util-linux
-PKG_VERSION:=2.30.2
+PKG_VERSION:=2.32.1
 PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
-PKG_SOURCE_URL:=@KERNEL/linux/utils/$(PKG_NAME)/v2.30
-PKG_HASH:=7b5be5489e9b5b7177832836467aba1c87bf0e9bcbcb5a6f35d76cd4782589dc
+PKG_SOURCE_URL:=@KERNEL/linux/utils/$(PKG_NAME)/v2.32
+PKG_HASH:=86e6707a379c7ff5489c218cfaf1e3464b0b95acf7817db0bc5f179e356a67b2
 PKG_CPE_ID:=cpe:/a:kernel:util-linux
 
 PKG_LICENSE:=GPL-2.0
 PKG_LICENSE_FILES:=	COPYING					\
-			getopt/COPYING				\
 			libblkid/COPYING			\
 			libmount/COPYING			\
 			Documentation/licenses/COPYING.GPLv2	\
@@ -142,6 +141,16 @@ define Package/blkid/description
  library.
 endef
 
+define Package/blockdev
+$(call Package/util-linux/Default)
+  TITLE:=call block device ioctls from the command line
+  SUBMENU=Disc
+endef
+
+define Package/blockdev/description
+ The blockdev program is the command-line interface to call block device ioctls.
+endef
+
 define Package/cal
 $(call Package/util-linux/Default)
   TITLE:=display a calendar
@@ -173,6 +182,18 @@ define Package/dmesg/description
  dmesg  is used to examine or control the kernel ring buffer
 endef
 
+define Package/eject
+$(call Package/util-linux/Default)
+  TITLE:=eject removable media
+  DEPENDS:= +libblkid +libmount +libuuid
+  SUBMENU=Disc
+endef
+
+define Package/eject/description
+  eject allows removable media (typically a CD-ROM, floppy disk, tape, or JAZ
+  or ZIP disk) to be ejected under software control.
+endef
+
 define Package/fdisk
 $(call Package/util-linux/Default)
   TITLE:=manipulate disk partition table
@@ -199,6 +220,7 @@ endef
 define Package/flock
 $(call Package/util-linux/Default)
   TITLE:=manage locks from shell scripts
+  ALTERNATIVES:=200:/usr/bin/flock:/usr/bin/util-linux-flock
 endef
 
 define Package/flock/description
@@ -462,7 +484,7 @@ endef
 define Package/wipefs
 $(call Package/util-linux/Default)
   TITLE:=wipe a signature from a device
-  DEPENDS:= +libblkid
+  DEPENDS:= +libblkid +libsmartcols
   SUBMENU:=Disc
 endef
 
@@ -473,14 +495,15 @@ define Package/wipefs/description
 endef
 
 CONFIGURE_ARGS += \
-	--disable-use-tty-group \
-	--disable-rpath \
-	--disable-tls		\
-	--disable-sulogin	\
-	--without-python	\
-	--without-udev		\
-	--without-readline	\
-	--disable-more		\
+	--disable-use-tty-group		\
+	--disable-rpath			\
+	--disable-tls			\
+	--disable-sulogin		\
+	--disable-makeinstall-chown	\
+	--without-python		\
+	--without-udev			\
+	--without-readline		\
+	--disable-more			\
 	--with-ncursesw
 
 TARGET_CFLAGS += $(FPIC) -std=gnu99
@@ -564,6 +587,11 @@ define Package/blkid/install
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/blkid $(1)/usr/sbin/
 endef
 
+define Package/blockdev/install
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/blockdev $(1)/usr/sbin/
+endef
+
 define Package/cal/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/cal $(1)/usr/bin/
@@ -579,6 +607,11 @@ define Package/dmesg/install
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/dmesg $(1)/usr/bin/
 endef
 
+define Package/eject/install
+	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/eject $(1)/usr/bin/
+endef
+
 define Package/fdisk/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/fdisk $(1)/usr/sbin/
@@ -591,7 +624,7 @@ endef
 
 define Package/flock/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/flock $(1)/usr/bin/
+	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/flock $(1)/usr/bin/util-linux-flock
 endef
 
 define Package/fstrim/install
@@ -733,9 +766,11 @@ $(eval $(call BuildPackage,libuuid))
 $(eval $(call BuildPackage,agetty))
 $(eval $(call BuildPackage,blkdiscard))
 $(eval $(call BuildPackage,blkid))
+$(eval $(call BuildPackage,blockdev))
 $(eval $(call BuildPackage,cal))
 $(eval $(call BuildPackage,cfdisk))
 $(eval $(call BuildPackage,dmesg))
+$(eval $(call BuildPackage,eject))
 $(eval $(call BuildPackage,fdisk))
 $(eval $(call BuildPackage,findfs))
 $(eval $(call BuildPackage,flock))

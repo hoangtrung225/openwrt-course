@@ -52,6 +52,7 @@ define Device/ubnt-xm
   DEVICE_PACKAGES += kmod-usb-ohci
   UBNT_TYPE := XM
   UBNT_CHIP := ar7240
+  KERNEL := kernel-bin | patch-cmdline | relocate-kernel | lzma | uImage lzma
 endef
 
 define Device/ubnt-xw
@@ -121,7 +122,7 @@ endef
 define Device/ubnt-unifiac-lite
   $(Device/ubnt-unifiac)
   DEVICE_TITLE := Ubiquiti UniFi AC-Lite
-  DEVICE_PACKAGES := kmod-ath10k ath10k-firmware-qca988x
+  DEVICE_PACKAGES := kmod-ath10k-ct ath10k-firmware-qca988x-ct
   DEVICE_PROFILE += UBNTUNIFIACLITE
   BOARDNAME := UBNT-UF-AC-LITE
 endef
@@ -136,7 +137,7 @@ TARGET_DEVICES += ubnt-unifiac-mesh
 define Device/ubnt-unifiac-pro
   $(Device/ubnt-unifiac)
   DEVICE_TITLE := Ubiquiti UniFi AC-Pro
-  DEVICE_PACKAGES += kmod-ath10k ath10k-firmware-qca988x
+  DEVICE_PACKAGES += kmod-ath10k-ct ath10k-firmware-qca988x-ct
   DEVICE_PROFILE += UBNTUNIFIACPRO
   BOARDNAME := UBNT-UF-AC-PRO
 endef
@@ -258,9 +259,9 @@ TARGET_DEVICES += ubnt-ls-sr71
 
 define Device/ubnt-uap-pro
   DEVICE_TITLE := Ubiquiti UAP Pro
-  KERNEL_SIZE := 1536k
+  KERNEL_SIZE := 2048k
   IMAGE_SIZE := 15744k
-  MTDPARTS := spi0.0:256k(u-boot)ro,64k(u-boot-env)ro,1536k(kernel),14208k(rootfs),256k(cfg)ro,64k(EEPROM)ro,15744k@0x50000(firmware)
+  MTDPARTS := spi0.0:256k(u-boot)ro,64k(u-boot-env)ro,2048k(kernel),13696k(rootfs),256k(cfg)ro,64k(EEPROM)ro,15744k@0x50000(firmware)
   UBNT_TYPE := BZ
   UBNT_CHIP := ar934x
   BOARDNAME := UAP-PRO
@@ -270,6 +271,7 @@ define Device/ubnt-uap-pro
   IMAGE/sysupgrade.bin := append-kernel | pad-to $$$$(KERNEL_SIZE) | append-rootfs | pad-rootfs | check-size $$$$(IMAGE_SIZE)
   IMAGE/factory.bin := $$(IMAGE/sysupgrade.bin) | mkubntimage2
 endef
+TARGET_DEVICES += ubnt-uap-pro
 
 define Device/ubnt-unifi-outdoor-plus
   $(Device/ubnt-uap-pro)
@@ -278,3 +280,4 @@ define Device/ubnt-unifi-outdoor-plus
   BOARDNAME := UBNT-UOP
   DEVICE_PROFILE := UBNT
 endef
+TARGET_DEVICES += ubnt-unifi-outdoor-plus

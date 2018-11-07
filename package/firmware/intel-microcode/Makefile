@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=intel-microcode
-PKG_VERSION:=20170707
-PKG_RELEASE:=1~deb9u1
+PKG_VERSION:=20180807a
+PKG_RELEASE:=1
 
 PKG_SOURCE:=intel-microcode_3.$(PKG_VERSION).$(PKG_RELEASE).tar.xz
 PKG_SOURCE_URL:=http://ftp.debian.org/debian/pool/non-free/i/intel-microcode/
-PKG_HASH:=6e288b687077cbb678c90a1c2ab0cfba43ee46e8645dc3791884278f6453e927
+PKG_HASH:=1a7cb96d5c6a4abac2936236223d9bea79d7442dc1cfe9b712ff8e35374f0f9f
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-3.$(PKG_VERSION).$(PKG_RELEASE)
 
 PKG_BUILD_DEPENDS:=iucode-tool/host
@@ -36,14 +36,14 @@ endef
 
 define Build/Compile
 	IUCODE_TOOL=$(STAGING_DIR)/../host/bin/iucode_tool $(MAKE) -C $(PKG_BUILD_DIR)
-	mkdir $(PKG_BUILD_DIR)/intel-ucode
+	mkdir $(PKG_BUILD_DIR)/intel-ucode-ipkg
 	$(STAGING_DIR)/../host/bin/iucode_tool -q \
-		--write-firmware=$(PKG_BUILD_DIR)/intel-ucode $(PKG_BUILD_DIR)/$(MICROCODE).bin
+		--write-firmware=$(PKG_BUILD_DIR)/intel-ucode-ipkg $(PKG_BUILD_DIR)/$(MICROCODE).bin
 endef
 
 define Package/intel-microcode/install
 	$(INSTALL_DIR) $(1)/lib/firmware/intel-ucode
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/intel-ucode/* $(1)/lib/firmware/intel-ucode
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/intel-ucode-ipkg/* $(1)/lib/firmware/intel-ucode
 endef
 
 $(eval $(call BuildPackage,intel-microcode))

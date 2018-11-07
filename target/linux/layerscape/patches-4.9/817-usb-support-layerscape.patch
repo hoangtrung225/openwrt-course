@@ -1,7 +1,7 @@
-From a2a97f0d2c07a772899ca09967547bea6c9124c5 Mon Sep 17 00:00:00 2001
+From 1d35e363dd6e8bb1733bca0dfc186e3f70e692fe Mon Sep 17 00:00:00 2001
 From: Yangbo Lu <yangbo.lu@nxp.com>
-Date: Wed, 17 Jan 2018 15:46:03 +0800
-Subject: [PATCH 29/30] usb: support layerscape
+Date: Thu, 5 Jul 2018 17:38:52 +0800
+Subject: [PATCH 29/32] usb: support layerscape
 
 This is an integrated patch for layerscape usb support.
 
@@ -17,42 +17,43 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
 ---
  drivers/net/usb/cdc_ether.c           |   8 +
  drivers/net/usb/r8152.c               |   6 +
- drivers/usb/common/common.c           |  50 ++++++
+ drivers/usb/common/common.c           |  50 +++++
  drivers/usb/core/hub.c                |   8 +
- drivers/usb/dwc3/core.c               | 243 ++++++++++++++++++++++++++++-
- drivers/usb/dwc3/core.h               |  51 ++++++-
+ drivers/usb/dwc3/core.c               | 243 +++++++++++++++++++++-
+ drivers/usb/dwc3/core.h               |  51 ++++-
  drivers/usb/dwc3/ep0.c                |   4 +-
  drivers/usb/dwc3/gadget.c             |   7 +
  drivers/usb/dwc3/host.c               |  24 ++-
- drivers/usb/gadget/udc/fsl_udc_core.c |  46 +++---
+ drivers/usb/gadget/udc/fsl_udc_core.c |  46 +++--
  drivers/usb/gadget/udc/fsl_usb2_udc.h |  16 +-
- drivers/usb/host/Kconfig              |   2 +-
- drivers/usb/host/ehci-fsl.c           | 279 +++++++++++++++++++++++++++++++---
+ drivers/usb/host/Kconfig              |   4 +-
+ drivers/usb/host/ehci-fsl.c           | 279 ++++++++++++++++++++++++--
  drivers/usb/host/ehci-fsl.h           |   3 +
  drivers/usb/host/ehci-hub.c           |   4 +
- drivers/usb/host/ehci.h               |   9 ++
- drivers/usb/host/fsl-mph-dr-of.c      |  12 ++
- drivers/usb/host/xhci-plat.c          |  10 ++
- drivers/usb/host/xhci-ring.c          |  29 +++-
- drivers/usb/host/xhci.c               |  38 ++++-
- drivers/usb/host/xhci.h               |   5 +-
- drivers/usb/phy/phy-fsl-usb.c         |  59 +++++--
+ drivers/usb/host/ehci.h               |   9 +
+ drivers/usb/host/fsl-mph-dr-of.c      |  16 +-
+ drivers/usb/host/xhci-hub.c           |  22 ++
+ drivers/usb/host/xhci-plat.c          |  16 +-
+ drivers/usb/host/xhci-ring.c          |  29 ++-
+ drivers/usb/host/xhci.c               |  38 +++-
+ drivers/usb/host/xhci.h               |   6 +-
+ drivers/usb/phy/phy-fsl-usb.c         |  59 ++++--
  drivers/usb/phy/phy-fsl-usb.h         |   8 +
  include/linux/usb.h                   |   1 +
  include/linux/usb/of.h                |   2 +
- 25 files changed, 836 insertions(+), 88 deletions(-)
+ 26 files changed, 867 insertions(+), 92 deletions(-)
 
 --- a/drivers/net/usb/cdc_ether.c
 +++ b/drivers/net/usb/cdc_ether.c
-@@ -532,6 +532,7 @@ static const struct driver_info wwan_inf
- #define LENOVO_VENDOR_ID	0x17ef
+@@ -533,6 +533,7 @@ static const struct driver_info wwan_inf
+ #define LINKSYS_VENDOR_ID	0x13b1
  #define NVIDIA_VENDOR_ID	0x0955
  #define HP_VENDOR_ID		0x03f0
 +#define TPLINK_VENDOR_ID	0x2357
  
  static const struct usb_device_id	products[] = {
  /* BLACKLIST !!
-@@ -732,6 +733,13 @@ static const struct usb_device_id	produc
+@@ -742,6 +743,13 @@ static const struct usb_device_id	produc
  			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
  	.driver_info = 0,
  },
@@ -68,15 +69,15 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
   *
 --- a/drivers/net/usb/r8152.c
 +++ b/drivers/net/usb/r8152.c
-@@ -520,6 +520,7 @@ enum rtl8152_flags {
- #define VENDOR_ID_SAMSUNG		0x04e8
+@@ -521,6 +521,7 @@ enum rtl8152_flags {
  #define VENDOR_ID_LENOVO		0x17ef
+ #define VENDOR_ID_LINKSYS		0x13b1
  #define VENDOR_ID_NVIDIA		0x0955
 +#define VENDOR_ID_TPLINK		0x2357
  
  #define MCU_TYPE_PLA			0x0100
  #define MCU_TYPE_USB			0x0000
-@@ -1816,6 +1817,10 @@ static int rx_bottom(struct r8152 *tp, i
+@@ -1817,6 +1818,10 @@ static int rx_bottom(struct r8152 *tp, i
  			unsigned int pkt_len;
  			struct sk_buff *skb;
  
@@ -87,9 +88,9 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  			pkt_len = le32_to_cpu(rx_desc->opts1) & RX_LEN_MASK;
  			if (pkt_len < ETH_ZLEN)
  				break;
-@@ -4507,6 +4512,7 @@ static struct usb_device_id rtl8152_tabl
- 	{REALTEK_USB_DEVICE(VENDOR_ID_LENOVO,  0x7205)},
+@@ -4510,6 +4515,7 @@ static struct usb_device_id rtl8152_tabl
  	{REALTEK_USB_DEVICE(VENDOR_ID_LENOVO,  0x304f)},
+ 	{REALTEK_USB_DEVICE(VENDOR_ID_LINKSYS, 0x0041)},
  	{REALTEK_USB_DEVICE(VENDOR_ID_NVIDIA,  0x09ff)},
 +	{REALTEK_USB_DEVICE(VENDOR_ID_TPLINK,  0x0601)},
  	{}
@@ -156,7 +157,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  	int ret;
 --- a/drivers/usb/core/hub.c
 +++ b/drivers/usb/core/hub.c
-@@ -4415,6 +4415,14 @@ hub_port_init(struct usb_hub *hub, struc
+@@ -4431,6 +4431,14 @@ hub_port_init(struct usb_hub *hub, struc
  	else
  		speed = usb_speed_string(udev->speed);
  
@@ -206,7 +207,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  		if (IS_ENABLED(CONFIG_USB_DWC3_HOST))
  			mode = USB_DR_MODE_HOST;
  		else if (IS_ENABLED(CONFIG_USB_DWC3_GADGET))
-@@ -213,8 +232,9 @@ static void dwc3_frame_length_adjustment
+@@ -227,8 +246,9 @@ static void dwc3_frame_length_adjustment
  
  	reg = dwc3_readl(dwc->regs, DWC3_GFLADJ);
  	dft = reg & DWC3_GFLADJ_30MHZ_MASK;
@@ -218,7 +219,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  		reg &= ~DWC3_GFLADJ_30MHZ_MASK;
  		reg |= DWC3_GFLADJ_30MHZ_SDBND_SEL | dwc->fladj;
  		dwc3_writel(dwc->regs, DWC3_GFLADJ, reg);
-@@ -579,6 +599,99 @@ static int dwc3_phy_setup(struct dwc3 *d
+@@ -599,6 +619,99 @@ static int dwc3_phy_setup(struct dwc3 *d
  	return 0;
  }
  
@@ -318,7 +319,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  static void dwc3_core_exit(struct dwc3 *dwc)
  {
  	dwc3_event_buffers_cleanup(dwc);
-@@ -721,6 +834,8 @@ static int dwc3_core_init(struct dwc3 *d
+@@ -741,6 +854,8 @@ static int dwc3_core_init(struct dwc3 *d
  	if (ret)
  		goto err1;
  
@@ -327,7 +328,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  	/* Adjust Frame Length */
  	dwc3_frame_length_adjustment(dwc);
  
-@@ -919,11 +1034,117 @@ static void dwc3_core_exit_mode(struct d
+@@ -939,11 +1054,117 @@ static void dwc3_core_exit_mode(struct d
  	}
  }
  
@@ -445,7 +446,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  	struct resource		*res;
  	struct dwc3		*dwc;
  	u8			lpm_nyet_threshold;
-@@ -955,6 +1176,11 @@ static int dwc3_probe(struct platform_de
+@@ -975,6 +1196,11 @@ static int dwc3_probe(struct platform_de
  	dwc->xhci_resources[0].flags = res->flags;
  	dwc->xhci_resources[0].name = res->name;
  
@@ -457,7 +458,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  	res->start += DWC3_GLOBALS_REGS_START;
  
  	/*
-@@ -997,6 +1223,12 @@ static int dwc3_probe(struct platform_de
+@@ -1017,6 +1243,12 @@ static int dwc3_probe(struct platform_de
  	dwc->usb3_lpm_capable = device_property_read_bool(dev,
  				"snps,usb3_lpm_capable");
  
@@ -470,7 +471,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  	dwc->disable_scramble_quirk = device_property_read_bool(dev,
  				"snps,disable_scramble_quirk");
  	dwc->u2exit_lfps_quirk = device_property_read_bool(dev,
-@@ -1041,6 +1273,8 @@ static int dwc3_probe(struct platform_de
+@@ -1061,6 +1293,8 @@ static int dwc3_probe(struct platform_de
  	dwc->hird_threshold = hird_threshold
  		| (dwc->is_utmi_l1_suspend << 4);
  
@@ -479,7 +480,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  	platform_set_drvdata(pdev, dwc);
  	dwc3_cache_hwparams(dwc);
  
-@@ -1064,6 +1298,11 @@ static int dwc3_probe(struct platform_de
+@@ -1084,6 +1318,11 @@ static int dwc3_probe(struct platform_de
  	if (ret < 0)
  		goto err1;
  
@@ -534,7 +535,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  /* Global Debug Queue/FIFO Space Available Register */
  #define DWC3_GDBGFIFOSPACE_NUM(n)	((n) & 0x1f)
  #define DWC3_GDBGFIFOSPACE_TYPE(n)	(((n) << 5) & 0x1e0)
-@@ -180,7 +207,6 @@
+@@ -182,7 +209,6 @@
  #define DWC3_GCTL_CLK_PIPE	(1)
  #define DWC3_GCTL_CLK_PIPEHALF	(2)
  #define DWC3_GCTL_CLK_MASK	(3)
@@ -542,7 +543,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  #define DWC3_GCTL_PRTCAP(n)	(((n) & (3 << 12)) >> 12)
  #define DWC3_GCTL_PRTCAPDIR(n)	((n) << 12)
  #define DWC3_GCTL_PRTCAP_HOST	1
-@@ -289,6 +315,10 @@
+@@ -294,6 +320,10 @@
  /* Global Frame Length Adjustment Register */
  #define DWC3_GFLADJ_30MHZ_SDBND_SEL		(1 << 7)
  #define DWC3_GFLADJ_30MHZ_MASK			0x3f
@@ -553,7 +554,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  
  /* Global User Control Register 2 */
  #define DWC3_GUCTL2_RST_ACTBITLATER		(1 << 14)
-@@ -753,6 +783,7 @@ struct dwc3_scratchpad_array {
+@@ -758,6 +788,7 @@ struct dwc3_scratchpad_array {
   * @regs: base address for our registers
   * @regs_size: address space size
   * @fladj: frame length adjustment
@@ -561,7 +562,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
   * @irq_gadget: peripheral controller's IRQ number
   * @nr_scratch: number of scratch buffers
   * @u1u2: only used on revisions <1.83a for workaround
-@@ -829,6 +860,7 @@ struct dwc3_scratchpad_array {
+@@ -834,6 +865,7 @@ struct dwc3_scratchpad_array {
   * 	1	- -3.5dB de-emphasis
   * 	2	- No de-emphasis
   * 	3	- Reserved
@@ -569,7 +570,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
   */
  struct dwc3 {
  	struct usb_ctrlrequest	*ctrl_req;
-@@ -847,6 +879,7 @@ struct dwc3 {
+@@ -852,6 +884,7 @@ struct dwc3 {
  	spinlock_t		lock;
  
  	struct device		*dev;
@@ -577,7 +578,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  
  	struct platform_device	*xhci;
  	struct resource		xhci_resources[DWC3_XHCI_RESOURCES_NUM];
-@@ -872,6 +905,12 @@ struct dwc3 {
+@@ -877,6 +910,12 @@ struct dwc3 {
  	enum usb_phy_interface	hsphy_mode;
  
  	u32			fladj;
@@ -590,7 +591,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  	u32			irq_gadget;
  	u32			nr_scratch;
  	u32			u1u2;
-@@ -948,9 +987,12 @@ struct dwc3 {
+@@ -953,9 +992,12 @@ struct dwc3 {
  	unsigned		ep0_bounced:1;
  	unsigned		ep0_expect_in:1;
  	unsigned		has_hibernation:1;
@@ -603,7 +604,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  	unsigned		pending_events:1;
  	unsigned		pullups_connected:1;
  	unsigned		setup_packet_pending:1;
-@@ -971,9 +1013,16 @@ struct dwc3 {
+@@ -976,9 +1018,16 @@ struct dwc3 {
  	unsigned		dis_rxdet_inp3_quirk:1;
  	unsigned		dis_u2_freeclk_exists_quirk:1;
  	unsigned		dis_del_phy_power_chg_quirk:1;
@@ -822,7 +823,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  		curr_ep = get_ep_by_pipe(udc, i);
  
  		/* If the ep is configured */
--		if (curr_ep->name == NULL) {
+-		if (!curr_ep->ep.name) {
 +		if (strncmp(curr_ep->name, "ep", 2)) {
  			WARNING("Invalid EP?");
  			continue;
@@ -924,11 +925,13 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  #endif
 --- a/drivers/usb/host/Kconfig
 +++ b/drivers/usb/host/Kconfig
-@@ -165,7 +165,7 @@ config XPS_USB_HCD_XILINX
+@@ -164,8 +164,8 @@ config XPS_USB_HCD_XILINX
+ 		devices only.
  
  config USB_EHCI_FSL
- 	tristate "Support for Freescale PPC on-chip EHCI USB controller"
+-	tristate "Support for Freescale PPC on-chip EHCI USB controller"
 -	depends on FSL_SOC
++	tristate "Support for Freescale QorIQ(ARM/PPC) on-chip EHCI USB controller"
 +	depends on USB_EHCI_HCD
  	select USB_EHCI_ROOT_HUB_TT
  	---help---
@@ -1399,6 +1402,17 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  /*
 --- a/drivers/usb/host/fsl-mph-dr-of.c
 +++ b/drivers/usb/host/fsl-mph-dr-of.c
+@@ -98,8 +98,8 @@ static struct platform_device *fsl_usb2_
+ 
+ 	pdev->dev.coherent_dma_mask = ofdev->dev.coherent_dma_mask;
+ 
+-	if (!pdev->dev.dma_mask)
+-		pdev->dev.dma_mask = &ofdev->dev.coherent_dma_mask;
++	if (!pdev->dev.dma_mask && ofdev->dev.of_node)
++		of_dma_configure(&pdev->dev, ofdev->dev.of_node);
+ 	else
+ 		dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+ 
 @@ -226,6 +226,18 @@ static int fsl_usb2_mph_dr_of_probe(stru
  		of_property_read_bool(np, "fsl,usb-erratum-a007792");
  	pdata->has_fsl_erratum_a005275 =
@@ -1418,12 +1432,57 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  
  	/*
  	 * Determine whether phy_clk_valid needs to be checked
+--- a/drivers/usb/host/xhci-hub.c
++++ b/drivers/usb/host/xhci-hub.c
+@@ -562,12 +562,34 @@ void xhci_set_link_state(struct xhci_hcd
+ 				int port_id, u32 link_state)
+ {
+ 	u32 temp;
++	u32 portpmsc_u2_backup = 0;
++
++	/* Backup U2 timeout info before initiating U3 entry erratum A-010131 */
++	if (xhci->shared_hcd->speed >= HCD_USB3 &&
++			link_state == USB_SS_PORT_LS_U3 &&
++			(xhci->quirks & XHCI_DIS_U1U2_WHEN_U3)) {
++		portpmsc_u2_backup = readl(port_array[port_id] + PORTPMSC);
++		portpmsc_u2_backup &= PORT_U2_TIMEOUT_MASK;
++		temp = readl(port_array[port_id] + PORTPMSC);
++		temp |= PORT_U2_TIMEOUT_MASK;
++		writel(temp, port_array[port_id] + PORTPMSC);
++	}
+ 
+ 	temp = readl(port_array[port_id]);
+ 	temp = xhci_port_state_to_neutral(temp);
+ 	temp &= ~PORT_PLS_MASK;
+ 	temp |= PORT_LINK_STROBE | link_state;
+ 	writel(temp, port_array[port_id]);
++
++	/* Restore U2 timeout info after U3 entry complete */
++	if (xhci->shared_hcd->speed >= HCD_USB3 &&
++			link_state == USB_SS_PORT_LS_U3 &&
++			(xhci->quirks & XHCI_DIS_U1U2_WHEN_U3)) {
++		temp = readl(port_array[port_id] + PORTPMSC);
++		temp &= ~PORT_U2_TIMEOUT_MASK;
++		temp |= portpmsc_u2_backup;
++		writel(temp, port_array[port_id] + PORTPMSC);
++	}
+ }
+ 
+ static void xhci_set_remote_wake_mask(struct xhci_hcd *xhci,
 --- a/drivers/usb/host/xhci-plat.c
 +++ b/drivers/usb/host/xhci-plat.c
-@@ -223,6 +223,16 @@ static int xhci_plat_probe(struct platfo
- 	if (device_property_read_bool(&pdev->dev, "usb3-lpm-capable"))
- 		xhci->quirks |= XHCI_LPM_SUPPORT;
+@@ -220,8 +220,22 @@ static int xhci_plat_probe(struct platfo
+ 		goto disable_clk;
+ 	}
  
+-	if (device_property_read_bool(&pdev->dev, "usb3-lpm-capable"))
++	if (device_property_read_bool(&pdev->dev, "usb3-lpm-capable")) {
+ 		xhci->quirks |= XHCI_LPM_SUPPORT;
++		if (device_property_read_bool(&pdev->dev,
++					"snps,dis-u1u2-when-u3-quirk"))
++			xhci->quirks |= XHCI_DIS_U1U2_WHEN_U3;
++	}
++
 +	if (device_property_read_bool(&pdev->dev, "quirk-reverse-in-out"))
 +		xhci->quirks |= XHCI_REVERSE_IN_OUT;
 +
@@ -1433,10 +1492,9 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
 +
 +	if (device_property_read_bool(&pdev->dev, "quirk-stop-ep-in-u1"))
 +		xhci->quirks |= XHCI_STOP_EP_IN_U1;
-+
+ 
  	if (device_property_read_bool(&pdev->dev, "quirk-broken-port-ped"))
  		xhci->quirks |= XHCI_BROKEN_PORT_PED;
- 
 --- a/drivers/usb/host/xhci-ring.c
 +++ b/drivers/usb/host/xhci-ring.c
 @@ -1852,14 +1852,17 @@ static int finish_td(struct xhci_hcd *xh
@@ -1494,7 +1552,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  		while (ep_ring->dequeue != td->last_trb)
 --- a/drivers/usb/host/xhci.c
 +++ b/drivers/usb/host/xhci.c
-@@ -1570,14 +1570,38 @@ int xhci_urb_dequeue(struct usb_hcd *hcd
+@@ -1609,14 +1609,38 @@ int xhci_urb_dequeue(struct usb_hcd *hcd
  			ret = -ENOMEM;
  			goto done;
  		}
@@ -1542,7 +1600,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  	spin_unlock_irqrestore(&xhci->lock, flags);
 --- a/drivers/usb/host/xhci.h
 +++ b/drivers/usb/host/xhci.h
-@@ -1621,7 +1621,7 @@ struct xhci_hcd {
+@@ -1625,7 +1625,7 @@ struct xhci_hcd {
  #define XHCI_STATE_REMOVING	(1 << 2)
  	/* Statistics */
  	int			error_bitmask;
@@ -1551,13 +1609,14 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  #define	XHCI_LINK_TRB_QUIRK	(1 << 0)
  #define XHCI_RESET_EP_QUIRK	(1 << 1)
  #define XHCI_NEC_HOST		(1 << 2)
-@@ -1657,6 +1657,9 @@ struct xhci_hcd {
+@@ -1661,6 +1661,10 @@ struct xhci_hcd {
  #define XHCI_SSIC_PORT_UNUSED	(1 << 22)
  #define XHCI_NO_64BIT_SUPPORT	(1 << 23)
  #define XHCI_MISSING_CAS	(1 << 24)
 +#define XHCI_REVERSE_IN_OUT    (1 << 29)
 +#define XHCI_STOP_TRANSFER_IN_BLOCK    (1 << 30)
 +#define XHCI_STOP_EP_IN_U1    (1 << 31)
++#define XHCI_DIS_U1U2_WHEN_U3 (1 << 32)
  /* For controller with a broken Port Disable implementation */
  #define XHCI_BROKEN_PORT_PED	(1 << 25)
  #define XHCI_LIMIT_ENDPOINT_INTERVAL_7	(1 << 26)
@@ -1658,7 +1717,7 @@ Signed-off-by: Yangbo Lu <yangbo.lu@nxp.com>
  			return IRQ_HANDLED;
  		}
  	}
-@@ -923,12 +932,32 @@ int usb_otg_start(struct platform_device
+@@ -925,12 +934,32 @@ int usb_otg_start(struct platform_device
  	temp &= ~(PORTSC_PHY_TYPE_SEL | PORTSC_PTW);
  	switch (pdata->phy_mode) {
  	case FSL_USB2_PHY_ULPI:

@@ -8,9 +8,9 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=e2fsprogs
-PKG_VERSION:=1.43.7
-PKG_HASH:=2a6367289047d68d9ba6a46cf89ab9a1efd0556cde02a51ebaf414ff51edded9
-PKG_RELEASE:=2
+PKG_VERSION:=1.44.3
+PKG_HASH:=5d899f7d30f481cc0c6a049ebe26ebe145f1b524182ea1ecde4086162d4e4bb6
+PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@KERNEL/linux/kernel/people/tytso/e2fsprogs/v$(PKG_VERSION)/
@@ -131,7 +131,10 @@ $(call Package/e2fsprogs)
   DEPENDS:= +e2fsprogs
 endef
 
-TARGET_CFLAGS += $(FPIC) -ffunction-sections -fdata-sections
+TARGET_CFLAGS += $(FPIC) -ffunction-sections -fdata-sections -flto
+
+TARGET_LDFLAGS += $(if $(CONFIG_USE_GLIBC),-lrt)
+TARGET_LDFLAGS += -flto
 
 CONFIGURE_ARGS += \
 	--disable-testio-debug \
@@ -142,7 +145,6 @@ CONFIGURE_ARGS += \
 	--disable-tls		\
 	--disable-nls		\
 	--disable-rpath		\
-	--disable-threads	\
 	--disable-fuse2fs
 
 define Build/Prepare
