@@ -6030,8 +6030,6 @@ void ieee80211_nan_func_match(struct ieee80211_vif *vif,
 			      struct cfg80211_nan_match_params *match,
 			      gfp_t gfp);
 
-#endif /* MAC80211_H */
-
 // custom struct for kernel module
 // create this struct in include/net/mac80211.h
 
@@ -6040,4 +6038,6 @@ struct packet_mac_signal {
 	u8  MACaddr[6];     
 	int signal;     
 };
+
+#endif /* MAC80211_H */
 

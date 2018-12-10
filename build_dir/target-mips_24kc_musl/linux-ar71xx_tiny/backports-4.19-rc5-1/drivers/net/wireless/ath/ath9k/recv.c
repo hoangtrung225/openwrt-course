@@ -17,6 +17,7 @@
 #include <linux/dma-mapping.h>
 #include "ath9k.h"
 #include "ar9003_mac.h"
+#include "helper_function"
 
 #define SKB_CB_ATHBUF(__skb)	(*((struct ath_rxbuf **)__skb->cb))
 
@@ -446,6 +447,9 @@ void ath_startrecv(struct ath_softc *sc)
 		ath_edma_start_recv(sc);
 		return;
 	}
+
+	/* init client info list*/
+	init_list_client_signal_info()
 
 	if (list_empty(&sc->rx.rxbuf))
 		goto start_recv;
@@ -1253,20 +1257,32 @@ requeue:
 	return 0;
 }
 
-struct packet_mac_signal signal_array[10];
+struct packet_mac_signal client_signal_list;
 
 int process_client_signal_info( u8 *MACaddr, int signal) {
 	// This function will process every new packet by update client_signal_info list
 	// You need to implement actions like: add client, update existed client, remove 
         // client
 	// TODO: Fill your code here
-	for(int i = 0; i < 10; i++)
-		if (MAC_compare(MACaddr, &packet_mac_signal[i].MACaddr) == 0){
-			packet_mac_signal[i].signal = signal;	
+	// travel list and find client with mac addr
+	struct packet_mac_signal* client_info;
+	list_for_each_entry(client_info, &client_signal_list.list, list) {
+		if(MAC_compare(client_info->MACaddr, MACaddr) == 0){
+			client_info->signal = signal;
 			return 0;
 		}
-	return -1;	
+	}
+
+	// not found MAC addr in list, add client as new member
+	client_info = kmalloc(sizeof(struct packet_mac_signal), GFP_KERNEL);
+	if(client_info == NULL)
+		return -1;
+	memcpy(client_info->MACaddr, MACaddr, sizeof(u8) * 6);
+	client_info->signal = signal;
+	INIT_LIST_HEAD(&client_info->list);
 	
+	/* add the new node to clien list */
+	list_add_tail(&(client_info->list), &(client_signal_list.list));
 }
 
 
@@ -1281,3 +1297,7 @@ int MAC_compare( u8 *addr1, u8 *addr2) {
 	return 0;
 }
 
+void init_list_client_signal_info(void){
+	printk(KERN_INFO "initialize client list");
+	INIT_LIST_HEAD(&client_signal_list.list);
+}
