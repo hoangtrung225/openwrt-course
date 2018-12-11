@@ -17,7 +17,7 @@
 #include <linux/dma-mapping.h>
 #include "ath9k.h"
 #include "ar9003_mac.h"
-#include "helper_function"
+#include "helper_function.h"
 
 #define SKB_CB_ATHBUF(__skb)	(*((struct ath_rxbuf **)__skb->cb))
 
@@ -447,9 +447,9 @@ void ath_startrecv(struct ath_softc *sc)
 		ath_edma_start_recv(sc);
 		return;
 	}
-
+	printk("KERNELINFO ath_startrecv\n");
 	/* init client info list*/
-	init_list_client_signal_info()
+	init_list_client_signal_info();
 
 	if (list_empty(&sc->rx.rxbuf))
 		goto start_recv;
@@ -1072,8 +1072,6 @@ exit:
 
 
 
-int process_client_signal_info( u8 *MACaddr, int signal);
-int MAC_compare( u8 *addr1, u8 *addr2);
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 {
 	struct ath_rxbuf *bf;
@@ -1228,7 +1226,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 		ieee80211_rx(hw, skb);
 		
-		process_client_info(hdr->addr2, hw->signal);
+		process_client_signal_info(hdr->addr2, rxs->signal);
 requeue_drop_frag:
 		if (sc->rx.frag) {
 			dev_kfree_skb_any(sc->rx.frag);
@@ -1259,15 +1257,16 @@ requeue:
 
 struct packet_mac_signal client_signal_list;
 
-int process_client_signal_info( u8 *MACaddr, int signal) {
+void process_client_signal_info( u8 *MACaddr, int signal) {
 	// This function will process every new packet by update client_signal_info list
 	// You need to implement actions like: add client, update existed client, remove 
         // client
 	// TODO: Fill your code here
 	// travel list and find client with mac addr
+	printk("KERN_INFO process packet");
 	struct packet_mac_signal* client_info;
 	list_for_each_entry(client_info, &client_signal_list.list, list) {
-		if(MAC_compare(client_info->MACaddr, MACaddr) == 0){
+		if(MAC_compare(client_info->MACaddr, MACaddr) == true){
 			client_info->signal = signal;
 			return 0;
 		}
@@ -1286,15 +1285,16 @@ int process_client_signal_info( u8 *MACaddr, int signal) {
 }
 
 
-int MAC_compare( u8 *addr1, u8 *addr2) {
+bool MAC_compare( u8 *addr1, u8 *addr2) {
 	// TODO: Fill your code here
 	// return 'True' if addr1 and addr2 express the same MAC Address, otherwise return 
 	// 'False'
-	for (int i = 0; i < 6; i++){
+	int i;
+	for (i = 0; i < 6; i++){
 		if(addr1[i] != addr2[i])
-			return -1;
+			return false;
 	}
-	return 0;
+	return true;
 }
 
 void init_list_client_signal_info(void){
